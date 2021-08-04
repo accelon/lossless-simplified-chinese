@@ -5,17 +5,21 @@ const mapping=sc2tc.split(/\r?\n/);
 㐷=傌     //gb 與 big5 一對一 (繁體無㐷字)
 杰~傑     //繁體有「杰」字
 */
-const overwrite= //調整順序，首字為較常用字 (但Unicode 值較低)
-{"尽":"盡儘","历":"歷曆","获":"獲穫","荡":"蕩盪","绦":"縧絛","缰":"繮韁","赝":"贋贗","䴘":"鷉鷈"}
-const t2s={}, t2s_unsafe={} , s2t={};
+const overwrite= //調整順序，unsafe==1時 轉首字，unsafe=2時轉所有字
+{"干":"幹乾","尽":"盡儘","历":"歷曆","获":"獲穫","当":"當噹" ,
+"荡":"蕩盪","绦":"縧絛","缰":"繮韁","赝":"贋贗","䴘":"鷉鷈"}
+const t2s={}, t2s_unsafe1={} , t2s_unsafe2={}, s2t={};
 mapping.forEach(line=>{
 	let [m,sc, op,tc]=line.match(/(.)([=~])(.+)/);
 	if (overwrite[sc]) tc=overwrite[sc];
 	if (op=='=' && tc.length==1) {
 		t2s[tc]=sc;
-	} else {
-		for (let i=0;i<tc.length;i++) {
-			t2s_unsafe[tc[i]]=sc;
+	} else { // 簡字 在big5 中
+		t2s_unsafe1[tc[0]]=sc;  //只取第一個 ，即 歷轉历，但 曆 不轉 历
+		if (tc.length>1) {
+			for (let i=1;i<tc.length;i++) {
+				t2s_unsafe2[tc[i]]=sc;  //多對一 ，曆 也轉 历
+			}
 		}
 	}
 	if (op=='~') {
@@ -23,11 +27,12 @@ mapping.forEach(line=>{
 	} else s2t[sc]=tc;
 });
 
-export const toSim=(s,unsafe=false)=>{
+export const toSim=(s,unsafe=0)=>{
 	let out='';
 	for (let i=0;i<s.length;i++) {
 		let sc=t2s[s[i]];
-		if (unsafe && !sc) sc=t2s_unsafe[s[i]];
+		if (unsafe&& !sc) sc=t2s_unsafe1[s[i]];
+		if (unsafe==2&& !sc) sc=t2s_unsafe2[s[i]];
 		out+= sc || s[i];
 	}
 	return out;

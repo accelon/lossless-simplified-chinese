@@ -1,6 +1,6 @@
 {
   "name": "lossless-simplified-chinese",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "無損、可逆的繁體轉簡體",
   "type":"module",
   "main": "index.js",

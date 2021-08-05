@@ -1,3 +1,4 @@
+
 import {sc2tc} from './sc-tc-map.js'
 const mapping=sc2tc.split(/\r?\n/);
 /*
@@ -5,70 +6,88 @@ const mapping=sc2tc.split(/\r?\n/);
 㐷=傌     //gb 與 big5 一對一 (繁體無㐷字)
 杰~傑     //繁體有「杰」字
 */
-const overwrite= //調整順序，unsafe==1時 轉首字，unsafe=2時轉所有字
-{"干":"幹乾","尽":"盡儘","历":"歷曆","获":"獲穫","当":"當噹" ,
-"荡":"蕩盪","绦":"縧絛","缰":"繮韁","赝":"贋贗","䴘":"鷉鷈"}
-const t2s={}, t2s_unsafe1={} , t2s_unsafe2={}, s2t={};
-mapping.forEach(line=>{
-	let [m,sc, op,tc]=line.match(/(.)([=~])(.+)/);
+
+
+const overwrite= 
+{"获":"獲穫","缰":"繮韁","赝":"贋贗","伪":"僞偽","汇":"匯彙","坛":"壇罈","台":"臺颱檯"
+,"冲":"沖衝","硷":"礆鹼","绱":"緔鞝","脏":"臟髒","谫":"謭譾","钩":"鈎鉤","鿭":"鉨鑈",
+"锈":"銹鏽","闲":"閑閒", "须":"須鬚", "鳄":"鰐鱷"}
+const t2s={}, t2s_unsafe1={} ,  s2t={};
+mapping.forEach((line,idx)=>{
+	const r=line.match(/(.)(<?)(.+)/u);
+	if (!r) throw 'wrong data format '+idx
+	let [m,sc, op,tc]=r;
+	let oldtc=tc;
 	if (overwrite[sc]) tc=overwrite[sc];
-	if (op=='=' && tc.length==1) {
-		t2s[tc]=sc;
-	} else { // 簡字 在big5 中
-		t2s_unsafe1[tc[0]]=sc;  //只取第一個 ，即 歷轉历，但 曆 不轉 历
-		if (tc.length>1) {
-			for (let i=1;i<tc.length;i++) {
-				t2s_unsafe2[tc[i]]=sc;  //多對一 ，曆 也轉 历
+
+	if (op=='') {
+		if (tc.length==1) {//完美一對一 //左邊的字只有gb收，右邊只有big5收
+			t2s[tc]=sc;
+		} else {
+			if (tc[0]=='>') { //只有4個   着>著 , 坂>阪
+				t2s_unsafe1[tc.substr(1)]=sc; 
+			} else {  //假設只有
+				//历歷曆  , 发髮發 , 脏臟髒
+				t2s[tc[0]] = sc;        //第一個繁體可以安全轉到簡體
+				tc=tc.substr(1);
+				for (let i=0;i<tc.length;i++) { //目前只有一個
+					const cp=tc.codePointAt(i); //考慮未來 surrogate
+					if (!cp) break;
+					t2s_unsafe1[String.fromCodePoint(cp)] =sc ;
+				} 
 			}
 		}
+	} else { 
+		if (tc.length==1) {  // 圣聖  听聽  同衕  云雲  松鬆  体體  咸鹹
+			t2s_unsafe1[tc] = sc;  //簡字也在big5中
+		} else {      
+			while (tc&&tc[0]!=='>') {//干幹>乾  台臺<颱檯 
+				//接受 幹=>干 ,臺=>台 
+				const ch=String.fromCodePoint(tc.codePointAt(0));
+				t2s_unsafe1[ ch ] = sc;
+				tc=tc.substr(ch.length);
+			}
+			//最後剩六組  干乾  后後  复覆 征徵  于於  么幺麽
+			//繁體都收，不轉換
+		}
 	}
-	if (op=='~') {
-		s2t[sc]=tc.replace(sc,'')+sc; //展開自己
+	tc=oldtc.replace(/\>/g,'');
+	if (op=='<') {
+		s2t[sc]=tc.replace(sc,'')+sc; //簡字也可能是繁字 ， 簡字「面」 可能是繁字的「麵」或「面」
 	} else s2t[sc]=tc;
 });
 
-export const toSim=(s,unsafe=0)=>{
-	let out='';
-	for (let i=0;i<s.length;i++) {
-		let sc=t2s[s[i]];
-		if (unsafe&& !sc) sc=t2s_unsafe1[s[i]];
-		if (unsafe==2&& !sc) sc=t2s_unsafe2[s[i]];
-		out+= sc || s[i];
+export const toSim=(s,mode=1)=>{
+	let out='',i=0;
+	if (!mode) return s;
+	while (i<s.length){
+		const ucs4=String.fromCodePoint(s.codePointAt(i));
+		if (!ucs4)break;
+		let sc=t2s[ucs4];
+		if (mode==2&& !sc) sc=t2s_unsafe1[ucs4];
+		out+= sc || ucs4;
+		i++;
 	}
 	return out;
 }
-export const fromSim=(s,mode=0)=>{ 
-	let out='';
-	for (let i=0;i<s.length;i++) {
-		let tc=s2t[s[i]];
-		if (!tc) out+=s[i]; //沒有繁體
-		else if (tc.length==1) { //一對一
+export const fromSim=(s,mode=1)=>{ 
+	let out='',i=0;
+	if (!mode) return;
+	while (i<s.length && s[i]){ //對每一個ucs4
+		const ucs4=String.fromCodePoint(s.codePointAt(i));
+		if (!ucs4)break;
+		let tc=s2t[ucs4];
+		if (!tc) {
+			out+=ucs4; //沒有繁體
+		} else if (mode==1 && !tc.codePointAt(1) )  { //一對一
 			out+=tc;
-		} else if (mode) { 
-			if (mode==1){
-				out+=tc[0];//選第一個
-			} else {
-				out+='['+tc+']'; //展開
-			}
-		} else out+=s[i]; //保留不變
+		} else if (mode==2) { 
+			out+=String.fromCodePoint(tc.codePointAt(0));        //選第一個
+		} else if (mode==3){  //展開
+			if (tc.codePointAt(1)) out+='['+tc+']';
+			else out+=tc;
+		} else out+=ucs4; //保留不變
+		i++;
 	}
 	return out;
 }
-
-
-
-/*
-//以下字不轉簡體，
-並乾余併係傑傭僕價優兒出剋劃勝台同后向噸埰塗壞姦寧屍嶺幹幺幾廠彞
-征後復志愿慄憐懷懺捨掛採撲據擾於曏曬曲板极桿棲極構樸機檯櫃氣注準
-潔澱濘灑灕異癢癥睏確禦種穀窪範築簾籬網繫繭纍聖聽肴臘致臺與莊萬蕓
-薦薴虆蜡蟣蟲蠟蠶衕衚表裡製複覆觸誇豐趕踴辟適醜釐隻離雲面颳驚骯體
-鬆鬍鬥鬱鹹麵麼麽黨
-
-//因為對應的簡化字Big5 也收 
-并干余并系杰佣仆价优儿出克划胜台同后向吨采涂坏奸宁尸岭干么几厂彝
-征后复志愿栗怜怀忏舍挂采扑据扰于向晒曲板极杆栖极构朴机台柜气注准
-洁淀泞洒漓异痒症困确御种谷洼范筑帘篱网系茧累圣听肴腊致台与庄万芸
-荐苧蔂蜡虮虫蜡蚕同胡表里制复复触夸丰赶踊辟适丑厘只离云面刮惊肮体
-松胡斗郁咸面么么党
-*/

@@ -44,6 +44,7 @@ pass+=(fromSim('头发')=='頭发');test++;
 pass+=(fromSim('头发',2)=='頭髮') ;test++; //wrong guest\
 pass+=(fromSim('头发',3)=='頭[髮發]');test++;
 
-// console.log(toSim('髮'))
+
+pass+=fromSim(toSim('𥢒'))=='𥢒';test++;
 
 console.log('Passed test',pass,'test count',test);

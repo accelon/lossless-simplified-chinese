@@ -58,23 +58,27 @@ mapping.forEach((line,idx)=>{
 });
 
 export const toSim=(s,mode=1)=>{
+	if (!s) return s;
 	let out='',i=0;
 	if (!mode) return s;
 	while (i<s.length){
-		const ucs4=String.fromCodePoint(s.codePointAt(i));
+		const cp=s.codePointAt(i);
+		const ucs4=String.fromCodePoint(cp);
 		if (!ucs4)break;
 		let sc=t2s[ucs4];
 		if (mode==2&& !sc) sc=t2s_unsafe1[ucs4];
 		out+= sc || ucs4;
 		i++;
+		if (cp>0xffff) i++;
 	}
 	return out;
 }
 export const fromSim=(s,mode=1)=>{ 
 	let out='',i=0;
-	if (!mode) return;
+	if (!mode||!s) return s;
 	while (i<s.length && s[i]){ //對每一個ucs4
-		const ucs4=String.fromCodePoint(s.codePointAt(i));
+		const cp=s.codePointAt(i);
+		const ucs4=String.fromCodePoint(cp);
 		if (!ucs4)break;
 		let tc=s2t[ucs4];
 		if (!tc) {
@@ -88,6 +92,7 @@ export const fromSim=(s,mode=1)=>{
 			else out+=tc;
 		} else out+=ucs4; //保留不變
 		i++;
+		if (cp>0xffff) i++;
 	}
 	return out;
 }

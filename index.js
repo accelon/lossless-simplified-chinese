@@ -1,6 +1,10 @@
 
 import {sc2tc} from './sc-tc-map.js'
 const mapping=sc2tc.split(/\r?\n/);
+mapping.push('“「')
+mapping.push('‘『')
+mapping.push('”」')
+mapping.push('’』')
 /*
 伪=偽僞   //對應兩個繁體字
 㐷=傌     //gb 與 big5 一對一 (繁體無㐷字)
@@ -25,11 +29,11 @@ mapping.forEach((line,idx)=>{
 			t2s[tc]=sc;
 		} else {
 			if (tc[0]=='>') { //只有4個   着>著 , 坂>阪
-				t2s_unsafe1[tc.substr(1)]=sc; 
+				t2s_unsafe1[tc.substring(1)]=sc; 
 			} else {  //假設只有
 				//历歷曆  , 发髮發 , 脏臟髒
 				t2s[tc[0]] = sc;        //第一個繁體可以安全轉到簡體
-				tc=tc.substr(1);
+				tc=tc.substring(1);
 				for (let i=0;i<tc.length;i++) { //目前只有一個
 					const cp=tc.codePointAt(i); //考慮未來 surrogate
 					if (!cp) break;
@@ -45,7 +49,7 @@ mapping.forEach((line,idx)=>{
 				//接受 幹=>干 ,臺=>台 
 				const ch=String.fromCodePoint(tc.codePointAt(0));
 				t2s_unsafe1[ ch ] = sc;
-				tc=tc.substr(ch.length);
+				tc=tc.substring(ch.length);
 			}
 			//最後剩六組  干乾  后後  复覆 征徵  于於  么幺麽
 			//繁體都收，不轉換
